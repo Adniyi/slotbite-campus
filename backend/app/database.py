@@ -8,9 +8,13 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Database URL - Using SQLite for simplicity (perfect for hackathon)
-# You can switch to PostgreSQL later if needed
-SQLALCHEMY_DATABASE_URL = "sqlite:///./slotbite.db"
+# Use absolute path - always store database in backend/ folder
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATABASE_PATH = os.path.join(BASE_DIR, "slotbite.db")
+
+# Database URL
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
+
 
 # Create engine
 engine = create_engine(

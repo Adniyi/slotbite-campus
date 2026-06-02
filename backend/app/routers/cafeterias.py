@@ -15,6 +15,29 @@ def get_all_cafeterias(db: Session = Depends(get_db)):
     cafeterias = db.query(models.Cafeteria).all()
     return cafeterias
 
+@router.post("/", response_model=schemas.Cafeteria)
+def create_cafeteria(
+    cafeteria: schemas.CafeteriaBase,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Admin or Vendor can create new cafeteria"""
+    if current_user.role not in [models.UserRole.ADMIN, models.UserRole.VENDOR]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    db_cafeteria = models.Cafeteria(
+        name=cafeteria.name,
+        location=cafeteria.location,
+        is_open=cafeteria.is_open,
+        max_orders_per_slot=cafeteria.max_orders_per_slot
+    )
+    db.add(db_cafeteria)
+    db.commit()
+    db.refresh(db_cafeteria)
+    return db_cafeteria
+
+
+
 
 @router.get("/{cafeteria_id}/menu", response_model=List[schemas.MenuItem])
 def get_cafeteria_menu(cafeteria_id: int, db: Session = Depends(get_db)):
@@ -71,3 +94,4 @@ def get_cafeteria(cafeteria_id: int, db: Session = Depends(get_db)):
     if not cafeteria:
         raise HTTPException(status_code=404, detail="Cafeteria not found")
     return cafeteria
+
