@@ -31,7 +31,7 @@ def authenticate_user(db: Session, email: str, password: str):
     user = get_user_by_email(db, email)
     if not user:
         return False
-    if not verify_password(password, user.hashed_password):
+    if not verify_password(password, user.hashed_password): # type: ignore
         return False
     return user
 
@@ -65,7 +65,7 @@ def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
             db.add(order_item)
             total += menu_item.price * item.quantity
 
-    db_order.total_amount = total
+    db_order.total_amount = total # type: ignore
     db.commit()
     db.refresh(db_order)
     return db_order
@@ -91,7 +91,7 @@ def get_vendor_orders(db: Session, slot_time: Optional[datetime] = None):
     else:
         # Today's orders by default
         today = datetime.now().date()
-        query = query.filter(models.Order.slot_time.cast('date') == today)
+        query = query.filter(models.Order.slot_time.cast('date') == today) # type: ignore
     
     return query.order_by(models.Order.slot_time.asc()).all()
 
@@ -99,30 +99,47 @@ def get_vendor_orders(db: Session, slot_time: Optional[datetime] = None):
 def update_order_status(db: Session, order_id: int, status: models.OrderStatus):
     order = db.query(models.Order).filter(models.Order.id == order_id).first()
     if order:
-        order.status = status.value if isinstance(status, models.OrderStatus) else status
+        order.status = status.value if isinstance(status, models.OrderStatus) else status # type: ignore
         db.commit()
         db.refresh(order)
     return order
 
 
-def get_vendor_dashboard(db: Session):
-    """Simple dashboard summary"""
+def get_enhanced_vendor_dashboard(db: Session):
     today = datetime.now().date()
     
     orders = db.query(models.Order).filter(
-        models.Order.slot_time.cast('date') == today
-    ).all()
+        models.Order.slot_time.cast('date') == today # type: ignore
+    ).all() 
 
     total = len(orders)
-    pending = sum(1 for o in orders if o.status == models.OrderStatus.PENDING)
-    preparing = sum(1 for o in orders if o.status == models.OrderStatus.PREPARING)
-    ready = sum(1 for o in orders if o.status == models.OrderStatus.READY)
+    pending = sum(1 for o in orders if o.status == models.OrderStatus.PENDING) # type: ignore
+    preparing = sum(1 for o in orders if o.status == models.OrderStatus.PREPARING) # type: ignore
+    ready = sum(1 for o in orders if o.status == models.OrderStatus.READY) # type: ignore
     revenue = sum(o.total_amount for o in orders)
+
+    # Top 5 selling items
+    from collections import defaultdict
+    item_count = defaultdict(int)
+    item_revenue = defaultdict(float)
+
+    for order in orders:
+        for item in order.items:
+            item_count[item.menu_item.name] += item.quantity
+            item_revenue[item.menu_item.name] += item.quantity * item.menu_item.price
+
+    top_items = sorted(
+        [{"name": name, "count": count, "revenue": item_revenue[name]} 
+         for name, count in item_count.items()],
+        key=lambda x: x["count"], reverse=True
+    )[:5]
 
     return {
         "total_orders_today": total,
         "pending_orders": pending,
         "preparing_orders": preparing,
         "ready_orders": ready,
-        "revenue_today": round(revenue, 2)
+        "revenue_today": round(revenue, 2), # type: ignore
+        "top_items": top_items,
+        "next_busy_slots": []  # Can be expanded later
     }

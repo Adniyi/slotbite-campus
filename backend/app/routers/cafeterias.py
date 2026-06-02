@@ -43,7 +43,6 @@ def create_cafeteria(
 def get_cafeteria_menu(cafeteria_id: int, db: Session = Depends(get_db)):
     menu = db.query(models.MenuItem).filter(
         models.MenuItem.cafeteria_id == cafeteria_id,
-        models.MenuItem.available == True
     ).all()
     
     if not menu:
@@ -95,3 +94,26 @@ def get_cafeteria(cafeteria_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Cafeteria not found")
     return cafeteria
 
+
+# Add this to cafeterias.py
+
+@router.patch("/menu/{menu_id}/toggle")
+def toggle_menu_availability(
+    menu_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Vendor can mark a menu item as available/unavailable"""
+    if current_user.role != models.UserRole.VENDOR: # type: ignore
+        raise HTTPException(status_code=403, detail="Vendor access only")
+    
+    menu_item = db.query(models.MenuItem).filter(models.MenuItem.id == menu_id).first()
+    if not menu_item:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+    
+    menu_item.available = not menu_item.available # type: ignore
+    db.commit()
+    db.refresh(menu_item)
+    
+    status = "available" if menu_item.available else "unavailable" # type: ignore
+    return {"message": f"Menu item is now {status}", "item": menu_item}

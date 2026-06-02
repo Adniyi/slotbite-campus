@@ -1,7 +1,7 @@
 # dependencies.py
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+from jose import JWTError, jwt # pyright: ignore[reportMissingModuleSource]
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from . import models, schemas
@@ -27,7 +27,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
+        email: str = payload.get("sub") # pyright: ignore[reportAssignmentType]
         if email is None:
             raise credentials_exception
     except JWTError:

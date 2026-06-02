@@ -9,6 +9,22 @@ router = APIRouter(tags=["auth"])
 
 @router.post("/register", response_model=schemas.Token)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    
+    # Check if user email is valid: Valid email is "@elizadeuniversity.edu.ng"
+    if user.role == models.UserRole.STUDENT and "@elizadeuniversity.edu.ng" not in user.email:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid email address"
+        )
+
+    # Check if matric number is valid: Valid matric number starts with EU
+    if user.role == models.UserRole.STUDENT and not user.matrix_number.startswith("EU"): # type: ignore
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid matric number"
+        )
+    
+    # Check if user already exists
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(
@@ -19,7 +35,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     created_user = crud.create_user(db, user)
     
     # Auto login after register
-    access_token = create_access_token(data={"sub": user.email})
+    access_token = create_access_token(data={"sub": user.email, "name": user.full_name, "role": user.role.value})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -32,11 +48,15 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
             detail="Incorrect email or password"
         )
     
-    # Note: You need to add verify_password logic in crud or here
-    # For now, assuming you add it in crud later
-    if not user.hashed_password is True:  # Temporary safety
-        raise HTTPException(status_code=400, detail="Invalid user")
-    
+ 
+    # Note: This will be replaced with a JSON file check that contains the details of real students. 
+    # For now this will work.
+    if not crud.verify_password(user_credentials.password, user.hashed_password): # type: ignore
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password"
+        )
+
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 

@@ -99,3 +99,19 @@ class VendorDashboardSummary(BaseModel):
     ready_orders: int
     revenue_today: float
     slot_availability: List[SlotAvailability]
+
+
+# Add to schemas.py
+class TopMenuItem(BaseModel):
+    name: str
+    count: int
+    revenue: float
+
+class EnhancedVendorDashboard(BaseModel):
+    total_orders_today: int
+    pending_orders: int
+    preparing_orders: int
+    ready_orders: int
+    revenue_today: float
+    top_items: List[TopMenuItem]
+    next_busy_slots: List[dict]

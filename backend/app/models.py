@@ -35,6 +35,7 @@ class Cafeteria(Base):
     location = Column(String)
     is_open = Column(Boolean, default=True)
     max_orders_per_slot = Column(Integer, default=25)
+    is_paused = Column(Boolean, default=False)  # For pause/resume orders
 
     menu_items = relationship("MenuItem", back_populates="cafeteria")
 

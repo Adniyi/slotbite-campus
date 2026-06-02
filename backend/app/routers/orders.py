@@ -19,7 +19,7 @@ def create_order(
     current_user: models.User = Depends(get_current_user)
 ):
     # Only students can create orders
-    if current_user.role != models.UserRole.STUDENT:
+    if current_user.role.value != models.UserRole.STUDENT:
         raise HTTPException(status_code=403, detail="Only students can place orders")
     
     # Check if slot is available
@@ -33,11 +33,12 @@ def create_order(
     if not cafeteria:
         raise HTTPException(status_code=404, detail="Cafeteria not found")
     
-    if existing_orders >= cafeteria.max_orders_per_slot:
+    if existing_orders >= cafeteria.max_orders_per_slot: # type: ignore
         raise HTTPException(status_code=400, detail="This time slot is fully booked")
 
-    user_id = int(current_user.id)
+    user_id = int(current_user.id) # type: ignore
     new_order = crud.create_order(db, order, user_id)
+    
     return new_order
 
 
@@ -46,7 +47,7 @@ def get_my_orders(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    return crud.get_user_orders(db, current_user.id)
+    return crud.get_user_orders(db, current_user.id) # type: ignore
 
 
 @router.get("/{order_id}/qr")
@@ -59,7 +60,7 @@ def get_order_qr(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     
-    if order.user_id != current_user.id and current_user.role == models.UserRole.STUDENT:
+    if order.user_id != current_user.id and current_user.role == models.UserRole.STUDENT: # type: ignore
         raise HTTPException(status_code=403, detail="Not authorized")
     
     return {"order_id": order.id, "qr_data": f"SLOTBITE-ORDER-{order.id}"}
@@ -73,10 +74,10 @@ def get_vendor_orders(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    if current_user.role != models.UserRole.VENDOR:
+    if current_user.role != models.UserRole.VENDOR: # type: ignore
         raise HTTPException(status_code=403, detail="Vendor access only")
     
-    return crud.get_vendor_orders(db, current_user.id, slot_time)
+    return crud.get_vendor_orders(db, current_user.id, slot_time) # type: ignore
 
 
 @router.patch("/vendor/{order_id}/status", response_model=schemas.OrderResponse)
@@ -86,7 +87,7 @@ def update_order_status(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    if current_user.role != models.UserRole.VENDOR:
+    if current_user.role != models.UserRole.VENDOR: # type: ignore
         raise HTTPException(status_code=403, detail="Vendor access only")
     
     return crud.update_order_status(db, order_id, status_update.status)
@@ -97,7 +98,7 @@ def vendor_dashboard(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    if current_user.role != models.UserRole.VENDOR:
+    if current_user.role != models.UserRole.VENDOR: # type: ignore
         raise HTTPException(status_code=403, detail="Vendor access only")
     
-    return crud.get_vendor_dashboard(db, current_user.id)
+    return crud.get_vendor_dashboard(db, current_user.id) # type: ignore
