@@ -1,0 +1,46 @@
+# Python virtual environments
+backend/venv/
+.venv/
+venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python packaging and testing
+*.egg-info/
+pip-wheel-metadata/
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+
+# Environment files
+.env
+.env.*
+
+# Node dependencies
+node_modules/
+frontend/node_modules/
+
+# Vite build output
+frontend/dist/
+frontend/.vite/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor directories and system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Optional lock files (uncomment if you don't want to commit lockfiles)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
