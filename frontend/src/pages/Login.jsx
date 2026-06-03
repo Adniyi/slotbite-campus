@@ -61,7 +61,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-3 border border-gray-200 rounded-none focus:outline-none focus:border-orange-500 text-sm"
-              placeholder="you@campus.edu"
+              placeholder="you@elizadeuniversity.edu.ng"
             />
           </div>
 

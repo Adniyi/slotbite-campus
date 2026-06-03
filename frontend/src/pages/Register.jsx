@@ -39,9 +39,9 @@ export default function Register() {
       await signUp({
         email,
         fullName,
+        matricNumber: role === "student" ? matricNumber : undefined,
         password,
         role,
-        matricNumber: role === "student" ? matricNumber : undefined,
         phone: phone || undefined,
       });
     } catch (err) {
@@ -85,6 +85,20 @@ export default function Register() {
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+              Email address
+            </label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-3 border border-gray-200 rounded-none focus:outline-none focus:border-orange-500 text-sm"
+              placeholder="you@elizadeuniversity.edu.ng"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
               Full name
             </label>
             <input
@@ -94,20 +108,6 @@ export default function Register() {
               onChange={(e) => setFullName(e.target.value)}
               className="w-full p-3 border border-gray-200 rounded-none focus:outline-none focus:border-orange-500 text-sm"
               placeholder="Jane Doe"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
-              Email address
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 border border-gray-200 rounded-none focus:outline-none focus:border-orange-500 text-sm"
-              placeholder="you@campus.edu"
             />
           </div>
 

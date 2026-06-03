@@ -1,57 +1,133 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { AlertCircle, CheckCircle2, Flame, Loader2 } from "lucide-react";
-
-const INITIAL_VENDOR_ORDERS = [
-  {
-    id: "OR-9481",
-    slot: "12:00 - 12:15",
-    items: [{ name: "Classic Avocado Toast", quantity: 2 }],
-    total: 13.0,
-    status: "Pending",
-  },
-  {
-    id: "OR-1029",
-    slot: "12:00 - 12:15",
-    items: [{ name: "Cold Brew Coffee XL", quantity: 1 }],
-    total: 4.0,
-    status: "Preparing",
-  },
-  {
-    id: "OR-4412",
-    slot: "12:15 - 12:30",
-    items: [{ name: "Spicy Vegan Chipotle Bowl", quantity: 1 }],
-    total: 11.0,
-    status: "Ready",
-  },
-];
+import { CheckCircle2, Flame, Loader2 } from "lucide-react";
 
 export default function VendorDashboard() {
-  const { orders, setOrders } = useAuth();
+  const { orders, setOrders, token } = useAuth();
   const [isPaused, setIsPaused] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Initialize store mock contextual arrays
-  React.useEffect(() => {
-    if (orders.length === 0) setOrders(INITIAL_VENDOR_ORDERS);
-  }, []);
+  useEffect(() => {
+    const API_BASE_URL =
+      import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/v1";
 
-  const updateStatus = (id, currentStatus) => {
-    let nextStatus = "Pending";
-    if (currentStatus === "Pending") nextStatus = "Preparing";
-    else if (currentStatus === "Preparing") nextStatus = "Ready";
+    const fetchDashboard = async () => {
+      if (!token) {
+        setError("You must be logged in as a vendor to view this dashboard.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError("");
+      try {
+        const [summaryRes, ordersRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/orders/vendor/dashboard`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_BASE_URL}/orders/vendor`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        if (!summaryRes.ok) {
+          const d = await summaryRes.json();
+          throw new Error(d.detail || "Unable to load vendor summary");
+        }
+
+        if (!ordersRes.ok) {
+          const d = await ordersRes.json();
+          throw new Error(d.detail || "Unable to load vendor orders");
+        }
+
+        const summaryData = await summaryRes.json();
+        const ordersData = await ordersRes.json();
+
+        setSummary(summaryData);
+        console.log(summaryData);
+        console.log(ordersData);
+
+        const mapped = ordersData.map((o) => ({
+          id: o.id,
+          slot: new Date(o.slot_time).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          items: o.items.map((it) => ({
+            name: it.menu_item_name || "Item",
+            quantity: it.quantity,
+          })),
+          total: o.total_amount,
+          status:
+            typeof o.status === "string"
+              ? o.status.charAt(0).toUpperCase() + o.status.slice(1)
+              : String(o.status),
+        }));
+
+        setOrders(mapped);
+      } catch (err) {
+        setError(err.message || "Unable to load vendor dashboard");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, [setOrders, token]);
+
+  const updateStatus = async (id, currentStatus) => {
+    let nextStatus = "pending";
+    if (currentStatus === "Pending") nextStatus = "preparing";
+    else if (currentStatus === "Preparing") nextStatus = "ready";
     else return;
 
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)),
-    );
+    const API_BASE_URL =
+      import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/v1";
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/orders/vendor/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : undefined,
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Unable to update status");
+
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === id
+            ? {
+                ...o,
+                status:
+                  nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1),
+              }
+            : o,
+        ),
+      );
+    } catch (err) {
+      console.error("Failed to update order status", err);
+    }
   };
 
   const metrics = {
-    pending: orders.filter((o) => o.status === "Pending").length,
+    pending:
+      summary?.pending_orders ??
+      orders.filter((o) => o.status === "Pending").length,
     preparing: orders.filter((o) => o.status === "Preparing").length,
-    ready: orders.filter((o) => o.status === "Ready").length,
-    revenue: orders.reduce((acc, o) => acc + o.total, 0),
+    ready:
+      summary?.ready_orders ??
+      orders.filter((o) => o.status === "Ready").length,
+    revenue:
+      summary?.revenue_today ?? orders.reduce((acc, o) => acc + o.total, 0),
   };
+
+  const displayOrders = orders || [];
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
@@ -81,7 +157,7 @@ export default function VendorDashboard() {
             Sales Inflow
           </p>
           <p className="text-2xl font-mono font-bold mt-2">
-            ${metrics.revenue.toFixed(2)}
+            ₦{(metrics.revenue ?? 0).toFixed(2)}
           </p>
         </div>
         <div className="border border-gray-200 p-4 bg-white">
@@ -114,61 +190,77 @@ export default function VendorDashboard() {
       <div className="space-y-4">
         <h3 className="font-bold text-lg">Incoming Assembly Line</h3>
 
-        <div className="space-y-2">
-          {orders.map((order) => (
-            <div
-              key={order.id}
-              className="border border-gray-200 p-4 bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div className="flex-1 space-y-1">
-                <div className="flex items-center gap-4">
-                  <span className="font-mono font-bold text-sm">
-                    {order.id}
-                  </span>
-                  <span className="text-xs px-2 py-0.5 bg-gray-100 font-medium text-gray-600">
-                    {order.slot}
-                  </span>
+        {loading ? (
+          <div className="p-6 border border-dashed border-gray-200 text-center text-gray-500">
+            Loading vendor data...
+          </div>
+        ) : error ? (
+          <div className="p-6 border border-red-200 bg-red-50 text-center text-red-700">
+            {error}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {displayOrders.length === 0 ? (
+              <div className="p-6 border border-dashed border-gray-200 text-center text-gray-500">
+                No orders found for today.
+              </div>
+            ) : (
+              displayOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className="border border-gray-200 p-4 bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-4">
+                      <span className="font-mono font-bold text-sm">
+                        {order.id}
+                      </span>
+                      <span className="text-xs px-2 py-0.5 bg-gray-100 font-medium text-gray-600">
+                        {order.slot}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-800">
+                      {order.items
+                        .map((i) => `${i.quantity}x ${i.name}`)
+                        .join(", ")}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between w-full md:w-auto gap-6">
+                    <span className="font-mono text-sm text-gray-500">
+                      ₦{order.total.toFixed(2)}
+                    </span>
+
+                    {order.status !== "Ready" ? (
+                      <button
+                        onClick={() => updateStatus(order.id, order.status)}
+                        className={`px-4 py-2 text-xs font-bold tracking-wide flex items-center gap-2 border border-gray-900 ${
+                          order.status === "Pending"
+                            ? "bg-white text-gray-900 hover:bg-orange-500 hover:text-white"
+                            : "bg-orange-500 text-white hover:bg-emerald-500"
+                        }`}>
+                        {order.status === "Pending" && (
+                          <>
+                            <Loader2 size={12} className="animate-spin" /> Start
+                            Preparing
+                          </>
+                        )}
+                        {order.status === "Preparing" && (
+                          <>
+                            <Flame size={12} /> Mark as Ready
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <span className="text-emerald-600 font-semibold text-xs flex items-center gap-1.5 px-3 py-2 bg-emerald-50">
+                        <CheckCircle2 size={14} /> Ready for Handout
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm font-medium text-gray-800">
-                  {order.items
-                    .map((i) => `${i.quantity}x ${i.name}`)
-                    .join(", ")}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between w-full md:w-auto gap-6">
-                <span className="font-mono text-sm text-gray-500">
-                  ${order.total.toFixed(2)}
-                </span>
-
-                {order.status !== "Ready" ? (
-                  <button
-                    onClick={() => updateStatus(order.id, order.status)}
-                    className={`px-4 py-2 text-xs font-bold tracking-wide flex items-center gap-2 border border-gray-900 ${
-                      order.status === "Pending"
-                        ? "bg-white text-gray-900 hover:bg-orange-500 hover:text-white"
-                        : "bg-orange-500 text-white hover:bg-emerald-500"
-                    }`}>
-                    {order.status === "Pending" && (
-                      <>
-                        <Loader2 size={12} className="animate-spin" /> Start
-                        Preparing
-                      </>
-                    )}
-                    {order.status === "Preparing" && (
-                      <>
-                        <Flame size={12} /> Mark as Ready
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  <span className="text-emerald-600 font-semibold text-xs flex items-center gap-1.5 px-3 py-2 bg-emerald-50">
-                    <CheckCircle2 size={14} /> Ready for Handout
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

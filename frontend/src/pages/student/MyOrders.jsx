@@ -1,10 +1,83 @@
-import React, { useState } from "react";
-import { useAuth } from "../../context/AuthContext";
-import { QrCode, X } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/v1";
 
 export default function MyOrders() {
-  const { orders } = useAuth();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [activeQr, setActiveQr] = useState(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState("");
+  const token = localStorage.getItem("slotbite_token");
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/orders/my`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : undefined,
+          },
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || "Unable to load orders");
+        }
+
+        const data = await response.json();
+        console.log(data);
+        setOrders(data);
+      } catch (err) {
+        setError(err.message || "Unable to load orders");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchOrders();
+    } else {
+      setLoading(false);
+      setError("You must be logged in to view orders");
+    }
+  }, [token]);
+
+  const handleShowQr = async (orderId) => {
+    setQrLoading(true);
+    setQrError("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}/qr`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : undefined,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Unable to load QR data");
+      }
+
+      const data = await response.json();
+      const qrcodeValueString = JSON.stringify(data.qr_data);
+      setActiveQr(qrcodeValueString);
+    } catch (err) {
+      setQrError(err.message || "Unable to load QR data");
+    } finally {
+      setQrLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -17,7 +90,15 @@ export default function MyOrders() {
         </p>
       </div>
 
-      {orders.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-12 border-2 border-dashed border-gray-200">
+          <p className="text-gray-400 text-sm">Loading your orders...</p>
+        </div>
+      ) : error ? (
+        <div className="text-center py-12 border-2 border-red-200 bg-red-50 rounded">
+          <p className="text-red-700 text-sm">{error}</p>
+        </div>
+      ) : orders.length === 0 ? (
         <div className="text-center py-12 border-2 border-dashed border-gray-200">
           <p className="text-gray-400 text-sm">
             No recent transactions or reservations found.
@@ -46,23 +127,29 @@ export default function MyOrders() {
                   </span>
                 </div>
                 <p className="text-sm text-gray-600 font-medium">
-                  Slot: {order.slot}
+                  Slot: {new Date(order.slot_time).toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-400">
                   {order.items
-                    .map((i) => `${i.quantity}x ${i.name}`)
+                    .map((i) => `${i.quantity}x ${i.menu_item_name || "Item"}`)
                     .join(", ")}
                 </p>
               </div>
 
               <div className="flex items-center justify-between w-full sm:w-auto gap-4 border-t sm:border-none pt-3 sm:pt-0">
                 <span className="font-mono font-bold text-base">
-                  ${order.total.toFixed(2)}
+                  ₦{order.total_amount.toFixed(2)}
                 </span>
                 <button
-                  onClick={() => setActiveQr(order.id)}
+                  onClick={() => handleShowQr(order.id)}
                   className="flex items-center gap-2 px-3 py-1.5 border border-gray-900 text-xs font-medium hover:bg-gray-900 hover:text-white">
-                  <QrCode size={14} /> View Pass
+                  <QRCodeSVG
+                    size={14}
+                    value={activeQr}
+                    level="M"
+                    marginSize={false}
+                  />{" "}
+                  View Pass
                 </button>
               </div>
             </div>
@@ -81,20 +168,26 @@ export default function MyOrders() {
             </button>
             <div className="text-center space-y-4 mt-2">
               <h3 className="font-bold text-lg">Verification Pickup Token</h3>
-              <p className="text-xs text-gray-500 font-mono">{activeQr}</p>
+              {qrLoading ? (
+                <p className="text-sm text-gray-500">Loading QR data...</p>
+              ) : qrError ? (
+                <p className="text-sm text-red-600">{qrError}</p>
+              ) : (
+                <p className="text-xs text-gray-500 font-mono break-words">
+                  {/* {activeQr} */}
+                </p>
+              )}
 
-              {/* Fallback to simulated clean responsive CSS layout box representing a standard structural matrix barcode */}
               <div className="w-48 h-48 mx-auto bg-gray-100 border-4 border-gray-900 flex items-center justify-center p-2">
                 <div className="w-full h-full border-2 border-dashed border-gray-400 flex flex-wrap p-1 gap-1">
-                  {Array.from({ length: 16 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={`w-8 h-8 ${i % 3 === 0 || i % 7 === 0 ? "bg-black" : "bg-transparent"}`}
-                    />
-                  ))}
+                  <QRCodeSVG
+                    size={160}
+                    value={activeQr}
+                    level="M"
+                    marginSize={false}
+                  />
                 </div>
               </div>
-
               <p className="text-xs text-gray-400">
                 Present to clerk terminal to mark item execution loop.
               </p>
