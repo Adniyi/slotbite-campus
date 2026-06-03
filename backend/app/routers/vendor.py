@@ -8,7 +8,7 @@ from ..database import get_db
 from .. import models, schemas, crud
 from ..dependencies import get_current_user
 
-router = APIRouter(prefix="/vendor", tags=["vendor"])
+router = APIRouter(tags=["vendor"])
 
 # ===================== VENDOR DASHBOARD =====================
 

@@ -32,8 +32,10 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
             detail="Email already registered"
         )
     
+    print("Creating user...")
     created_user = crud.create_user(db, user)
-    
+    # print("User created:", created_user)
+
     # Auto login after register
     access_token = create_access_token(data={"sub": user.email, "name": user.full_name, "role": user.role.value})
     return {"access_token": access_token, "token_type": "bearer"}
@@ -48,16 +50,24 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
             detail="Incorrect email or password"
         )
     
- 
     # Note: This will be replaced with a JSON file check that contains the details of real students. 
     # For now this will work.
-    if not crud.verify_password(user_credentials.password, user.hashed_password): # type: ignore
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect password"
-        )
+    if user.role == models.UserRole.VENDOR: # type: ignore
+        if not crud.verify_password(user_credentials.password, user.hashed_password): # type: ignore      
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect password"
+            )
+    elif user.role == models.UserRole.STUDENT: # type: ignore
+        typed_matric_number = user_credentials.password
+        if user.matrix_number != typed_matric_number: # type: ignore
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect matric number"
+            )
 
-    access_token = create_access_token(data={"sub": user.email})
+
+    access_token = create_access_token(data={"sub": user.email, "role": user.role.value})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
