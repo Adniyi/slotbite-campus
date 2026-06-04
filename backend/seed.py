@@ -7,7 +7,7 @@ def seed_data():
     db = SessionLocal()
 
     # Create table if not exists 
-    # Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
     # Clear existing data (optional - careful in production)
     print("🧹 Clearing existing data...")
@@ -86,6 +86,35 @@ def seed_data():
     ]
 
     db.add_all(menu_items)
+    db.commit()
+
+    # Create Vendor Users linked to cafeterias
+    print("👨‍💼 Creating vendor users...")
+    from app.utils.security import get_password_hash
+    
+    vendor1 = models.User(
+        email="vendor@bto.com",
+        full_name="B.T.O Manager",
+        hashed_password=get_password_hash("password123"),
+        role=models.UserRole.VENDOR,
+        cafeteria_id=caf1.id
+    )
+    vendor2 = models.User(
+        email="vendor@dunkayce.com",
+        full_name="DUNN-KAYCE Manager",
+        hashed_password=get_password_hash("password123"),
+        role=models.UserRole.VENDOR,
+        cafeteria_id=caf2.id
+    )
+    vendor3 = models.User(
+        email="vendor@laughters.com",
+        full_name="Laughter's Kitchen Manager",
+        hashed_password=get_password_hash("password123"),
+        role=models.UserRole.VENDOR,
+        cafeteria_id=caf3.id
+    )
+    
+    db.add_all([vendor1, vendor2, vendor3])
     db.commit()
 
     print("✅ Seeding completed successfully!")
