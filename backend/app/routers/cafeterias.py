@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 
 from ..database import get_db
 from .. import models, schemas
@@ -56,15 +56,31 @@ def get_available_slots(
     date: str | None,   # format: YYYY-MM-DD
     db: Session = Depends(get_db)
 ):
+    # if date:
+    #     target_date = datetime.fromisoformat(date)
+    # else:
+    #     target_date = datetime.now()
+    # 1. Parse incoming date strictly as a YYYY-MM-DD date object
     if date:
-        target_date = datetime.fromisoformat(date)
+        try:
+            # Strip time parts if sent, focus only on the calendar day
+            parsed_date = datetime.fromisoformat(date).date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
     else:
-        target_date = datetime.now()
+        parsed_date = datetime.now().date()
 
-    # Generate slots from 10:00 to 16:00 every 15 minutes
+    # # Generate slots from 10:00 to 16:00 every 15 minutes
+    # slots = []
+    # start_time = target_date.replace(hour=10, minute=0, second=0, microsecond=0)
+    cafeteria = db.query(models.Cafeteria).filter(models.Cafeteria.id == cafeteria_id).first()
+    max_capacity = cafeteria.max_orders_per_slot if cafeteria else 25
+    is_paused = bool(cafeteria.is_paused) if cafeteria else False
+
+    # 3. Establish base start time at exactly 10:00 AM on that target date
+    start_time = datetime.combine(parsed_date, time(hour=10, minute=0))
     slots = []
-    start_time = target_date.replace(hour=10, minute=0, second=0, microsecond=0)
-    
+
     for i in range(25):  # 25 slots
         slot_time = start_time + timedelta(minutes=15 * i)
         
@@ -75,13 +91,15 @@ def get_available_slots(
             models.Order.status != models.OrderStatus.CANCELLED
         ).count()
         
-        cafeteria = db.query(models.Cafeteria).filter(models.Cafeteria.id == cafeteria_id).first()
-        max_capacity = cafeteria.max_orders_per_slot if cafeteria else 25
+        available = max(0, max_capacity - count)
+        available = 0 if is_paused else available
         
         slots.append({
-            "slot_time": slot_time,
-            "available": max_capacity - count,
-            "total_capacity": max_capacity
+            "slot_time": slot_time.isoformat(), # e.g., "2026-06-03T13:15:00"
+            "display_time": slot_time.strftime("%I:%M %p"), # Generates clean user string: "01:15 PM"
+            "available": available,
+            "total_capacity": max_capacity,
+            "paused": is_paused
         })
     
     return slots

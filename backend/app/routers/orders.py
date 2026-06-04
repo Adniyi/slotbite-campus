@@ -33,6 +33,9 @@ def create_order(
     cafeteria = db.query(models.Cafeteria).filter(models.Cafeteria.id == order.cafeteria_id).first()
     if not cafeteria:
         raise HTTPException(status_code=404, detail="Cafeteria not found")
+
+    if cafeteria.is_paused: # type: ignore
+        raise HTTPException(status_code=400, detail="Orders are currently paused for this cafeteria.")
     
     if existing_orders >= cafeteria.max_orders_per_slot: # type: ignore
         raise HTTPException(status_code=400, detail="This time slot is fully booked")
@@ -100,7 +103,7 @@ def get_vendor_orders(
     if current_user.role != models.UserRole.VENDOR: # type: ignore
         raise HTTPException(status_code=403, detail="Vendor access only")
     
-    return crud.get_vendor_orders(db, slot_time) # type: ignore
+    return crud.get_vendor_orders(db, current_user.id, slot_time) # type: ignore
 
 
 @router.patch("/vendor/{order_id}/status", response_model=schemas.OrderResponse)

@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from ..database import get_db
 from .. import models, schemas, crud
@@ -20,12 +20,12 @@ def get_vendor_dashboard(
     if current_user.role.value != models.UserRole.VENDOR:
         raise HTTPException(status_code=403, detail="Vendor access only")
     
-    return schemas.VendorDashboardSummary(**crud.get_vendor_dashboard(db)) # type: ignore
+    return schemas.VendorDashboardSummary(**crud.get_vendor_dashboard(db, current_user.id)) # type: ignore
 
 
 @router.get("/orders")
 def get_orders_by_slot(
-    slot_time: datetime,
+    slot_time: Optional[datetime] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -33,7 +33,7 @@ def get_orders_by_slot(
     if current_user.role != models.UserRole.VENDOR: # type: ignore
         raise HTTPException(status_code=403, detail="Vendor access only")
     
-    orders = crud.get_vendor_orders(db, slot_time)
+    orders = crud.get_vendor_orders(db, current_user.id, slot_time) # type:ignore
     return orders
 
 
@@ -66,8 +66,10 @@ def pause_orders(
     if current_user.role != models.UserRole.VENDOR: # type: ignore
         raise HTTPException(status_code=403, detail="Vendor access only")
     
-    # Assuming one cafeteria per vendor for now
-    cafeteria = db.query(models.Cafeteria).first()  # Improve this logic later
+    cafeteria = None
+    if current_user.cafeteria_id:
+        cafeteria = db.query(models.Cafeteria).filter(models.Cafeteria.id == current_user.cafeteria_id).first()
+
     if cafeteria:
         cafeteria.is_paused = True # type: ignore
         db.commit()
@@ -86,7 +88,10 @@ def resume_orders(
     if current_user.role != models.UserRole.VENDOR: # type: ignore
         raise HTTPException(status_code=403, detail="Vendor access only")
     
-    cafeteria = db.query(models.Cafeteria).first()
+    cafeteria = None
+    if current_user.cafeteria_id:
+        cafeteria = db.query(models.Cafeteria).filter(models.Cafeteria.id == current_user.cafeteria_id).first()
+
     if cafeteria:
         cafeteria.is_paused = False # type: ignore
         db.commit()
@@ -109,7 +114,9 @@ def get_vendor_slots(
     # Reuse the logic from cafeterias router or duplicate for now
     from .cafeterias import get_available_slots
     # For simplicity, use first cafeteria (you can improve later)
-    cafeteria = db.query(models.Cafeteria).first()
+    cafeteria = None
+    if current_user.cafeteria_id:
+        cafeteria = db.query(models.Cafeteria).filter(models.Cafeteria.id == current_user.cafeteria_id).first()
     
     if not cafeteria:
         raise HTTPException(status_code=404, detail="No cafeteria found")

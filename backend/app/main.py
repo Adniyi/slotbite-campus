@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
-from .routers import auth, cafeterias, orders, vendor
+from .routers import auth, cafeterias, orders, vendor, timetable
 from fastapi import WebSocket, WebSocketDisconnect
 
 # Create database tables
@@ -24,6 +24,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(cafeterias.router, prefix="/api/v1/cafeterias", tags=["cafeterias"])
 app.include_router(orders.router, prefix="/api/v1/orders", tags=["orders"])
 app.include_router(vendor.router, prefix="/api/v1/vendor", tags=["vendor"])  # if you have separate
+app.include_router(timetable.router, prefix="/api/v1/timetable", tags=["timetable"])
 
 @app.get("/api/v1")
 @app.get("/")

@@ -1,5 +1,5 @@
 # models.py
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum, Boolean, Time
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -28,6 +28,11 @@ class User(Base):
     phone = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+
+    cafeteria_id = Column(Integer, ForeignKey("cafeterias.id"), nullable=True)
+    cafeteria = relationship("Cafeteria", back_populates="vendors")
+    schedules = relationship("ClassSchedule", back_populates="user")
+
 class Cafeteria(Base):
     __tablename__ = "cafeterias"
     id = Column(Integer, primary_key=True, index=True)
@@ -38,6 +43,7 @@ class Cafeteria(Base):
     is_paused = Column(Boolean, default=False)  # For pause/resume orders
 
     menu_items = relationship("MenuItem", back_populates="cafeteria")
+    vendors = relationship("User", back_populates="cafeteria")
 
 class MenuItem(Base):
     __tablename__ = "menu_items"
@@ -65,6 +71,11 @@ class Order(Base):
     cafeteria = relationship("Cafeteria")
     items = relationship("OrderItem", back_populates="order")
 
+    @property
+    def display_time(self):
+        slot = getattr(self, "slot_time", None)
+        return slot.strftime("%I:%M %p") if slot is not None else None
+
 class OrderItem(Base):
     __tablename__ = "order_items"
     id = Column(Integer, primary_key=True, index=True)
@@ -74,3 +85,16 @@ class OrderItem(Base):
 
     order = relationship("Order", back_populates="items")
     menu_item = relationship("MenuItem")
+
+
+class ClassSchedule(Base):
+    __tablename__ = "class_schedules"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    course_code = Column(String)
+    course_name = Column(String)
+    start_time = Column(Time)
+    end_time = Column(Time)
+    day = Column(String)  # Monday, Tuesday, etc.
+    
+    user = relationship("User", back_populates="schedules")

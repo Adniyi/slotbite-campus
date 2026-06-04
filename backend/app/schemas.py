@@ -1,6 +1,6 @@
 # schemas.py
 from pydantic import BaseModel, EmailStr, Field
-from datetime import datetime
+from datetime import datetime, time
 from typing import List, Optional
 from .models import UserRole, OrderStatus
 
@@ -12,9 +12,11 @@ class UserCreate(BaseModel):
     password: str
     role: UserRole = UserRole.STUDENT
     phone: Optional[str] = None
+    cafeteria_id: Optional[int] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
+    role: UserRole = UserRole.STUDENT
     password: str
 
 class Token(BaseModel):
@@ -76,6 +78,7 @@ class OrderResponse(BaseModel):
     cafeteria_name: Optional[str] = None
     total_amount: float
     slot_time: datetime
+    display_time: Optional[str] = None
     status: OrderStatus
     qr_code: Optional[str] = None
     created_at: datetime
@@ -99,6 +102,8 @@ class VendorDashboardSummary(BaseModel):
     ready_orders: int
     revenue_today: float
     slot_availability: List[SlotAvailability]
+    is_paused: bool = False
+
 
 
 # Add to schemas.py
@@ -115,3 +120,25 @@ class EnhancedVendorDashboard(BaseModel):
     revenue_today: float
     top_items: List[TopMenuItem]
     next_busy_slots: List[dict]
+
+
+# ==================== Class Timeable ====================
+
+class ClassScheduleBase(BaseModel):
+    course_code: str
+    course_name: str
+    start_time: time
+    end_time: time
+    day: str  # e.g., "Monday", "Tuesday"
+
+class ClassSchedule(ClassScheduleBase):
+    id: int
+    user_id: int
+
+    class Config:
+        from_attributes = True
+
+class TimetableClashResponse(BaseModel):
+    slot_time: datetime
+    status: str  # "green", "yellow", "red"
+    message: str

@@ -32,7 +32,12 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
             detail="Email already registered"
         )
     
-    print("Creating user...")
+    if user.role == models.UserRole.VENDOR and not user.cafeteria_id:
+        raise HTTPException(
+            status_code=400, 
+            detail="Vendors must select a cafeteria during registration"
+        )
+    
     created_user = crud.create_user(db, user)
     # print("User created:", created_user)
 
@@ -50,6 +55,13 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
             detail="Incorrect email or password"
         )
     
+    # Enforce that the client-selected role matches the server-side role for this account
+    if user.role != user_credentials.role: # type:ignore
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Account is a '{user.role.value}' account. Please switch to the {user.role.value} tab to login."
+        )
+    
     # Note: This will be replaced with a JSON file check that contains the details of real students. 
     # For now this will work.
     if user.role == models.UserRole.VENDOR: # type: ignore
@@ -58,7 +70,7 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect password"
             )
-    elif user.role == models.UserRole.STUDENT: # type: ignore
+    elif user.role == models.UserRole.STUDENT and not user.matrix_number.startswith("EU"): # type: ignore
         typed_matric_number = user_credentials.password
         if user.matrix_number != typed_matric_number: # type: ignore
             raise HTTPException(
@@ -77,6 +89,6 @@ def get_current_user_info(current_user: models.User = Depends(get_current_user))
         "id": current_user.id,
         "email": current_user.email,
         "full_name": current_user.full_name,
-        "role": current_user.role,
+        "role": current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role),
         "phone": current_user.phone
     }
