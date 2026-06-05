@@ -3,7 +3,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
 from .routers import auth, cafeterias, orders, vendor, timetable
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from .database import get_db
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -34,18 +36,3 @@ def root():
         "version": "1.0",
         "hackathon_mode": True
     }
-
-
-
-# Add this after your other imports and app creation
-active_connections = []
-
-@app.websocket("/ws/vendor")
-async def vendor_websocket(websocket: WebSocket):
-    await websocket.accept()
-    active_connections.append(websocket)
-    try:
-        while True:
-            await websocket.receive_text()  # Keep connection alive
-    except WebSocketDisconnect:
-        active_connections.remove(websocket)
