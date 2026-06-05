@@ -6,8 +6,11 @@ from datetime import time
 def seed_timetables():
     db = SessionLocal()
 
-    # Clear existing schedules
-    db.query(models.ClassSchedule).delete()
+    # Check if timetable already exists for the test user to ensure idempotency
+    if db.query(models.ClassSchedule).filter(models.ClassSchedule.user_id == 1).first():
+        print("⏭️  Timetable for user_id=1 already exists. Skipping.")
+        db.close()
+        return
 
     # Sample schedules for user_id = 1 (assuming your test student)
     schedules = [

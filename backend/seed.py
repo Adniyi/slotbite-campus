@@ -9,14 +9,13 @@ def seed_data():
     # Create table if not exists 
     Base.metadata.create_all(bind=engine)
 
-    # Clear existing data (optional - careful in production)
-    print("🧹 Clearing existing data...")
-    db.query(models.OrderItem).delete()
-    db.query(models.Order).delete()
-    db.query(models.MenuItem).delete()
-    db.query(models.Cafeteria).delete()
-    db.query(models.User).delete()
-    db.commit()
+    # Check if data is already seeded to ensure idempotency
+    if db.query(models.Cafeteria).first():
+        print("⏭️  Data already seeded. Skipping...")
+        db.close()
+        return
+
+    print("🌱 Seeding initial data...")
 
     # Create Sample Cafeterias
     print("🏪 Creating cafeterias...")
