@@ -3,7 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { CheckCircle2, Flame, Loader2 } from "lucide-react";
 
 export default function VendorDashboard() {
-  const { orders, setOrders, token } = useAuth();
+  const { orders, setOrders, token, user } = useAuth();
   const [isPaused, setIsPaused] = useState(() => {
     const stored = localStorage.getItem("slotbite_vendor_paused");
     return stored === "true";

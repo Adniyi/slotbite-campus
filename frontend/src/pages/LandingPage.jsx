@@ -49,7 +49,6 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      {/* Hero Section */}
       <section className="max-w-6xl mx-auto px-6 pt-16 pb-24 md:pt-24 md:pb-32">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* Left Column: Typography & Actions */}
@@ -67,35 +66,43 @@ export default function LandingPage() {
             {/* Action Row - Completely Flat Elements */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 justify-center md:justify-start">
               <button
-                onClick={() => navigate("/student/dashboard")}
+                onClick={() => navigate("/login")}
                 className="bg-[#10B981] text-white px-8 py-4 font-semibold text-base transition-colors hover:bg-emerald-600 active:bg-emerald-700 flex items-center justify-center gap-2 text-center">
                 Order as Student
                 <ArrowRight size={18} />
               </button>
               <button
-                onClick={() => navigate("/vendor/dashboard")}
+                onClick={() => navigate("/login")}
                 className="bg-gray-100 text-gray-900 border border-gray-200 px-8 py-4 font-semibold text-base transition-colors hover:bg-gray-200 active:bg-gray-300 text-center">
                 Vendor Dashboard
               </button>
             </div>
           </div>
-
-          {/* Right Column: Minimalist App Theme Visual */}
+          {/* Right Column: Flat Illustration App Wrapper */}
           <div className="lg:col-span-5 hidden lg:block">
-            <div className="border-4 border-gray-900 bg-gray-50 p-6 relative">
-              {/* Decorative Top Bar to mimic a clean browser/app frame */}
-              <div className="flex gap-2 mb-6 border-b border-gray-200 pb-4">
-                <div className="w-3 h-3 bg-gray-300" />
-                <div className="w-3 h-3 bg-gray-300" />
-                <div className="w-3 h-3 bg-gray-300" />
-              </div>
+            <div className="border-4 border-gray-900 bg-white p-2">
+              <div className="border border-gray-200 bg-gray-50 p-4 relative">
+                {/* Top Window UI Bar */}
+                <div className="flex gap-1.5 mb-4 border-b border-gray-200 pb-3">
+                  <div className="w-2.5 h-2.5 bg-gray-300" />
+                  <div className="w-2.5 h-2.5 bg-gray-300" />
+                  <div className="w-2.5 h-2.5 bg-gray-300" />
+                </div>
 
-              {/* Placeholder for the Theme Diagram */}
-              <div className="bg-white border border-gray-200 p-2"></div>
+                {/* Main Visual Asset Integration */}
+                <div className="border border-gray-900 bg-white overflow-hidden">
+                  <img
+                    src="https://www.searchenginejournal.com/facebook-brings-food-ordering-mobile-app/220035/"
+                    alt="SlotBite campus mobile food reservation layout mockup"
+                    className="w-full h-auto object-cover block"
+                    loading="eager"
+                  />
+                </div>
 
-              {/* Minimal accent badge that anchors the design */}
-              <div className="absolute -bottom-4 -left-4 bg-orange-500 text-white font-mono text-xs px-3 py-1.5 font-bold tracking-wider">
-                LIVE DEMO FRAME
+                {/* Fixed Structural Accent Token */}
+                <div className="absolute -bottom-4 -right-4 bg-orange-500 text-white font-mono text-xs px-3 py-1.5 font-bold tracking-wider">
+                  RESERVATION HUB
+                </div>
               </div>
             </div>
           </div>
@@ -250,6 +257,12 @@ export default function LandingPage() {
           </cite>
         </div>
       </section>
+      {/* <img
+        src="https://www.searchenginejournal.com/facebook-brings-food-ordering-mobile-app/220035/"
+        alt="SlotBite campus mobile food reservation layout mockup"
+        className="w-full h-auto object-cover block"
+        loading="eager"
+      /> */}
 
       {/* Footer Element */}
       <footer className="border-t border-gray-200 py-12 bg-white">

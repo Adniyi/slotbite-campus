@@ -40,6 +40,7 @@ export default function MyOrders() {
   const [qrLoading, setQrLoading] = useState(false);
   const [qrError, setQrError] = useState("");
   const token = localStorage.getItem("slotbite_token");
+  const user = JSON.parse(localStorage.getItem("slotbite_user"));
 
   useEffect(() => {
     const fetchOrders = async () => {

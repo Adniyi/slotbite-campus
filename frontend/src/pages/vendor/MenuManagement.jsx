@@ -1,4 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/v1";
 
 const INITIAL_CATALOG = [
   {
@@ -29,6 +34,8 @@ const INITIAL_CATALOG = [
 
 export default function MenuManagement() {
   const [catalog, setCatalog] = useState(INITIAL_CATALOG);
+  const vendorId = 1;
+  const { token } = useAuth();
 
   const toggleAvailability = (id) => {
     setCatalog((prev) =>

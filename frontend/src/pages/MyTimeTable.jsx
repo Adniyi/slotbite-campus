@@ -73,12 +73,12 @@ export default function MyTimetable() {
   };
 
   const deleteClass = async (id) => {
-    if (!confirm("Delete this class?")) return;
+    // if (!confirm("Delete this class?")) return;
     try {
       await studentAPI.deleteClassSchedule(id);
       // Refresh the list after successful deletion
       fetchTimetable();
-      alert("Class removed from timetable");
+      //   alert("Class removed from timetable");
     } catch (err) {
       console.error("Failed to delete class", err);
       alert("Failed to delete class");
