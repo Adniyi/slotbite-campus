@@ -15,7 +15,7 @@ app = FastAPI(title="SlotBite Campus")
 # CORS (important for React frontend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Change to your frontend URL in production
+    allow_origins=["https://slotbite-campus.vercel.app"],  # Change to your frontend URL in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
