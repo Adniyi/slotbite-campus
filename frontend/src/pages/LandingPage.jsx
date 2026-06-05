@@ -92,7 +92,7 @@ export default function LandingPage() {
                 {/* Main Visual Asset Integration */}
                 <div className="border border-gray-900 bg-white overflow-hidden">
                   <img
-                    src="https://www.searchenginejournal.com/facebook-brings-food-ordering-mobile-app/220035/"
+                    src="https://res.cloudinary.com/jerrick/image/upload/v1689059521/64ad00c1204a67001d7f1b7c.jpg"
                     alt="SlotBite campus mobile food reservation layout mockup"
                     className="w-full h-auto object-cover block"
                     loading="eager"
@@ -258,7 +258,7 @@ export default function LandingPage() {
         </div>
       </section>
       {/* <img
-        src="https://www.searchenginejournal.com/facebook-brings-food-ordering-mobile-app/220035/"
+        src="https://res.cloudinary.com/jerrick/image/upload/v1689059521/64ad00c1204a67001d7f1b7c.jpg"
         alt="SlotBite campus mobile food reservation layout mockup"
         className="w-full h-auto object-cover block"
         loading="eager"
