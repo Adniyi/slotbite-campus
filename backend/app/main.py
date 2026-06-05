@@ -22,11 +22,11 @@ app.add_middleware(
 )
 
 # Include routers under /api/v1 to match frontend requests
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
-app.include_router(cafeterias.router, prefix="/api/v1/cafeterias", tags=["cafeterias"])
-app.include_router(orders.router, prefix="/api/v1/orders", tags=["orders"])
-app.include_router(vendor.router, prefix="/api/v1/vendor", tags=["vendor"])  # if you have separate
-app.include_router(timetable.router, prefix="/api/v1/timetable", tags=["timetable"])
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(cafeterias.router, prefix="/cafeterias", tags=["cafeterias"])
+app.include_router(orders.router, prefix="/orders", tags=["orders"])
+app.include_router(vendor.router, prefix="/vendor", tags=["vendor"])  # if you have separate
+app.include_router(timetable.router, prefix="/timetable", tags=["timetable"])
 
 @app.get("/api/v1")
 @app.get("/")
