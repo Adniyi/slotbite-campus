@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Pizza } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -12,6 +12,9 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("student");
   const [matricNumber, setMatricNumber] = useState("");
+  const [cafeteriaId, setCafeteriaId] = useState("");
+  const [cafeterias, setCafeterias] = useState([]);
+  const [loadingCafeterias, setLoadingCafeterias] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -29,6 +32,11 @@ export default function Register() {
       return;
     }
 
+    if (role === "vendor" && !cafeteriaId) {
+      setError("Please select a cafeteria for your vendor account.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -40,6 +48,7 @@ export default function Register() {
         email,
         fullName,
         matricNumber: role === "student" ? matricNumber : undefined,
+        cafeteriaId: role === "vendor" ? parseInt(cafeteriaId, 10) : undefined,
         password,
         role,
         phone: phone || undefined,
@@ -50,6 +59,29 @@ export default function Register() {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    const API_BASE_URL =
+      import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/v1";
+
+    const fetchCafeterias = async () => {
+      setLoadingCafeterias(true);
+      try {
+        const response = await fetch(`${API_BASE_URL}/cafeterias`);
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Unable to load cafeterias");
+        }
+        setCafeterias(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingCafeterias(false);
+      }
+    };
+
+    fetchCafeterias();
+  }, []);
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
@@ -124,6 +156,32 @@ export default function Register() {
                 className="w-full p-3 border border-gray-200 rounded-none focus:outline-none focus:border-orange-500 text-sm"
                 placeholder="EU2xxxxx-xxxx"
               />
+            </div>
+          )}
+
+          {role === "vendor" && (
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                Select cafeteria
+              </label>
+              <select
+                required
+                value={cafeteriaId}
+                onChange={(e) => setCafeteriaId(e.target.value)}
+                className="w-full p-3 border border-gray-200 rounded-none focus:outline-none focus:border-orange-500 text-sm">
+                <option value="">Choose a cafeteria</option>
+                {loadingCafeterias ? (
+                  <option value="" disabled>
+                    Loading cafeterias...
+                  </option>
+                ) : (
+                  cafeterias.map((cafeteria) => (
+                    <option key={cafeteria.id} value={cafeteria.id}>
+                      {cafeteria.name}
+                    </option>
+                  ))
+                )}
+              </select>
             </div>
           )}
 

@@ -5,6 +5,33 @@ import { QRCodeSVG } from "qrcode.react";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/v1";
 
+const formatSlotTime = (slotTime) => {
+  if (!slotTime) return "";
+
+  if (slotTime.endsWith("Z") || /[\+\-]\d{2}:\d{2}$/.test(slotTime)) {
+    return new Date(slotTime).toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  const [datePart, timePart] = slotTime.split("T");
+  if (!datePart || !timePart) return slotTime;
+
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute] = timePart.split(":").map(Number);
+  const localDate = new Date(year, month - 1, day, hour, minute);
+
+  return localDate.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 export default function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +61,7 @@ export default function MyOrders() {
         }
 
         const data = await response.json();
-        console.log(data);
+        // console.log(data);
         setOrders(data);
       } catch (err) {
         setError(err.message || "Unable to load orders");
@@ -117,17 +144,20 @@ export default function MyOrders() {
                   </span>
                   <span
                     className={`px-2 py-0.5 text-xs font-semibold rounded-none ${
-                      order.status === "Ready"
+                      order.status === "ready"
                         ? "bg-emerald-100 text-emerald-800"
-                        : order.status === "Preparing"
+                        : order.status === "preparing"
                           ? "bg-orange-100 text-orange-800"
                           : "bg-gray-100 text-gray-800"
                     }`}>
-                    {order.status}
+                    {order.status.toUpperCase()}
+                  </span>
+                  <span className="text-xs px-2 py-0.5 bg-gray-20">
+                    {order.cafeteria_name}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600 font-medium">
-                  Slot: {new Date(order.slot_time).toLocaleString()}
+                  Slot: {order.display_time || formatSlotTime(order.slot_time)}
                 </p>
                 <p className="text-xs text-gray-400">
                   {order.items

@@ -4,7 +4,10 @@ import { CheckCircle2, Flame, Loader2 } from "lucide-react";
 
 export default function VendorDashboard() {
   const { orders, setOrders, token } = useAuth();
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused, setIsPaused] = useState(() => {
+    const stored = localStorage.getItem("slotbite_vendor_paused");
+    return stored === "true";
+  });
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -24,10 +27,10 @@ export default function VendorDashboard() {
       setError("");
       try {
         const [summaryRes, ordersRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/orders/vendor/dashboard`, {
+          fetch(`${API_BASE_URL}/vendor/dashboard`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`${API_BASE_URL}/orders/vendor`, {
+          fetch(`${API_BASE_URL}/vendor/orders`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -46,6 +49,9 @@ export default function VendorDashboard() {
         const ordersData = await ordersRes.json();
 
         setSummary(summaryData);
+        const pausedValue = summaryData.is_paused ?? false;
+        setIsPaused(pausedValue);
+        localStorage.setItem("slotbite_vendor_paused", String(pausedValue));
         console.log(summaryData);
         console.log(ordersData);
 
@@ -56,8 +62,8 @@ export default function VendorDashboard() {
             minute: "2-digit",
           }),
           items: o.items.map((it) => ({
-            name: it.menu_item_name || "Item",
-            quantity: it.quantity,
+            name: it.menu_item?.name || it.menu_item_name || "Item",
+            quantity: it.quantity || 0,
           })),
           total: o.total_amount,
           status:
@@ -87,7 +93,7 @@ export default function VendorDashboard() {
       import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/v1";
 
     try {
-      const res = await fetch(`${API_BASE_URL}/orders/vendor/${id}/status`, {
+      const res = await fetch(`${API_BASE_URL}/vendor/orders/${id}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -115,6 +121,36 @@ export default function VendorDashboard() {
     }
   };
 
+  const togglePause = async () => {
+    const API_BASE_URL =
+      import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/v1";
+    const endpoint = isPaused ? "/vendor/resume" : "/vendor/pause";
+
+    try {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : undefined,
+        },
+      });
+
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(
+          data.detail || data.message || "Unable to update order state",
+        );
+
+      const nextPaused = !isPaused;
+      setIsPaused(nextPaused);
+      localStorage.setItem("slotbite_vendor_paused", String(nextPaused));
+      setSummary((prev) => (prev ? { ...prev, is_paused: nextPaused } : prev));
+    } catch (err) {
+      console.error("Failed to toggle pause state", err);
+      alert(err.message || "Unable to change pause state");
+    }
+  };
+
   const metrics = {
     pending:
       summary?.pending_orders ??
@@ -137,16 +173,15 @@ export default function VendorDashboard() {
           <h1 className="text-2xl font-bold tracking-tight">
             Kitchen Dashboard
           </h1>
-          <p className="text-gray-500 text-sm">
-            Real-time status management pipeline.
+          <p className="text-gray-500 text-sm">Real-time status management.</p>
+          <p className="mt-2 text-sm font-semibold text-gray-600">
+            Current order intake: {isPaused ? "Paused" : "Open"}
           </p>
         </div>
         <button
-          onClick={() => setIsPaused(!isPaused)}
+          onClick={togglePause}
           className={`px-6 py-3 font-semibold text-sm tracking-wide border-0 transition-all ${isPaused ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}>
-          {isPaused
-            ? "Resume Direct Pre-Orders"
-            : "Pause Orders (Storefront Rush)"}
+          {isPaused ? "Resume Orders" : "Pause Orders"}
         </button>
       </div>
 

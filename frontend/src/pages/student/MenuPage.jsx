@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { Clock, ShoppingBag, Plus, Minus, Check } from "lucide-react";
 
@@ -31,6 +31,7 @@ const MOCK_MENU = [
 export default function MenuPage() {
   const { vendorId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { setOrders } = useAuth();
 
   const [menuItems, setMenuItems] = useState([]);
@@ -42,9 +43,25 @@ export default function MenuPage() {
   const [menuError, setMenuError] = useState("");
   const [slotsLoading, setSlotsLoading] = useState(true);
   const [slotsError, setSlotsError] = useState("");
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [paymentError, setPaymentError] = useState("");
   const token = localStorage.getItem("slotbite_token");
 
   useEffect(() => {
+    // Only pre-select if no slot is currently selected to avoid overwriting manual changes
+    if (!selectedSlot) {
+      const preselectedFromState = location?.state?.slot;
+      if (preselectedFromState) {
+        setSelectedSlot(preselectedFromState);
+      } else {
+        const params = new URLSearchParams(location.search);
+        const slotParam = params.get("slot");
+        if (slotParam) setSelectedSlot(slotParam);
+      }
+    }
+
     const fetchMenu = async () => {
       setMenuLoading(true);
       setMenuError("");
@@ -78,18 +95,23 @@ export default function MenuPage() {
     if (vendorId) {
       fetchMenu();
     }
-  }, [vendorId, token]);
+  }, [vendorId, token, location.state?.slot, location.search]); // Only react to the specific slot in state
 
   useEffect(() => {
     const fetchSlots = async () => {
       setSlotsLoading(true);
       setSlotsError("");
-      const timestamp = Date.now();
-      const date = new Date(timestamp).toISOString().split("T")[0];
+
+      // Determine target date: check selectedSlot (from state) first, then default to today
+      const targetDate = selectedSlot
+        ? selectedSlot.split("T")[0]
+        : new Date().toISOString().split("T")[0];
+
+      const dateQuery = targetDate ? `&date=${targetDate}` : "";
 
       try {
         const response = await fetch(
-          `${API_BASE_URL}/cafeterias/slots/available?cafeteria_id=${vendorId}&date=${date}`,
+          `${API_BASE_URL}/cafeterias/slots/available?cafeteria_id=${vendorId}${dateQuery}`,
           {
             method: "GET",
             headers: {
@@ -118,7 +140,8 @@ export default function MenuPage() {
     if (vendorId) {
       fetchSlots();
     }
-  }, [vendorId, token]);
+    // }, [vendorId, token]);
+  }, [vendorId, token, selectedSlot?.split("T")[0]]);
 
   const updateCart = (id, change) => {
     setCart((prev) => {
@@ -133,19 +156,37 @@ export default function MenuPage() {
     });
   };
 
+  const isSlotSelected = (slotTime) => {
+    if (!selectedSlot || !slotTime) return false;
+    return new Date(selectedSlot).getTime() == new Date(slotTime).getTime();
+  };
+
   const cartTotal = Object.entries(cart).reduce((sum, [id, qty]) => {
     const item = menuItems.find((m) => String(m.id) === id);
     return sum + (item ? item.price * qty : 0);
   }, 0);
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!selectedSlot || Object.keys(cart).length === 0) return;
-    setLoading(true);
+    setPaymentError("");
+    setShowPaymentDialog(true);
+  };
+
+  const processPayment = async () => {
+    if (!selectedSlot || Object.keys(cart).length === 0) return;
+    if (!confirmPassword) {
+      setPaymentError("Please enter your password to confirm.");
+      return;
+    }
+
+    setPaymentLoading(true);
+    setPaymentError("");
 
     try {
       const orderPayload = {
         cafeteria_id: parseInt(vendorId),
-        slot_time: new Date(selectedSlot).toISOString(),
+        slot_time: selectedSlot,
+        password: confirmPassword,
         items: Object.entries(cart).map(([id, qty]) => ({
           menu_item_id: parseInt(id),
           quantity: qty,
@@ -168,10 +209,13 @@ export default function MenuPage() {
 
       const createdOrder = await response.json();
       setOrders((prev) => [createdOrder, ...prev]);
+      setShowPaymentDialog(false);
+      setConfirmPassword("");
       navigate("/student/orders");
     } catch (error) {
-      alert(`Order failed: ${error.message}`);
-      setLoading(false);
+      setPaymentError(error.message || "Payment failed");
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -261,6 +305,11 @@ export default function MenuPage() {
           <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600">
             Available Windows Today
           </label>
+          {slots.some((slot) => slot.paused) && (
+            <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              This cafeteria is temporarily paused and not accepting new orders.
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-2">
             {slotsLoading ? (
               <div className="border border-gray-100 p-4 bg-white text-gray-600">
@@ -276,15 +325,16 @@ export default function MenuPage() {
               </div>
             ) : (
               slots.map((slot) => {
-                const slotLabel = new Date(slot.slot_time).toLocaleTimeString(
-                  [],
-                  {
+                const slotLabel =
+                  slot.display_time ||
+                  new Date(slot.slot_time).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
-                  },
-                );
+                  });
                 const available = slot.available ?? 0;
+                const totalCapacity = slot.total_capacity ?? 0;
                 const isDisabled = available <= 0;
+                const active = isSlotSelected(slot.slot_time);
 
                 return (
                   <button
@@ -293,17 +343,24 @@ export default function MenuPage() {
                     onClick={() =>
                       !isDisabled && setSelectedSlot(slot.slot_time)
                     }
-                    className={`w-full p-2.5 text-left text-sm flex items-center justify-between border ${selectedSlot === slot.slot_time ? "bg-orange-500 border-orange-500 text-white font-medium" : "bg-white border-gray-200 text-gray-700 hover:bg-gray-100"} ${isDisabled ? "opacity-60 cursor-not-allowed" : ""}`}>
-                    <div className="flex items-center gap-2">
-                      <Clock size={14} />
-                      <span>{slotLabel}</span>
+                    className={`w-full p-2.5 text-left text-sm flex items-center justify-between border ${active ? "bg-orange-500 border-orange-500 text-white font-medium" : "bg-white border-gray-200 text-gray-700 hover:bg-gray-100"} ${isDisabled ? "opacity-60 cursor-not-allowed" : ""}`}>
+                    <div className="flex flex-col text-left">
+                      <div className="flex items-center gap-2">
+                        <Clock size={14} />
+                        <span>{slotLabel}</span>
+                      </div>
+                      <span className="text-[11px] text-gray-500">
+                        {isDisabled
+                          ? `0 of ${totalCapacity} slots available`
+                          : `${available} of ${totalCapacity} slots available`}
+                      </span>
                     </div>
-                    <span className="text-xs font-semibold">
-                      {isDisabled ? "Full" : `${available} slots left`}
-                    </span>
-                    {selectedSlot === slot.slot_time && !isDisabled && (
-                      <Check size={14} />
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold">
+                        {isDisabled ? "Full" : `${available} slots left`}
+                      </span>
+                      {active && !isDisabled && <Check size={14} />}
+                    </div>
                   </button>
                 );
               })
@@ -330,6 +387,91 @@ export default function MenuPage() {
           {loading ? "Processing Order..." : "Confirm & Reserve Slot"}
         </button>
       </div>
+
+      {showPaymentDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white shadow-xl border border-gray-200">
+            <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold">Payment Confirmation</h2>
+                <p className="text-sm text-gray-500">
+                  Simulate payment to complete your order.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPaymentDialog(false)}
+                className="text-gray-400 hover:text-gray-700">
+                ✕
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm text-gray-500">Selected slot</p>
+                <p className="mt-1 text-base font-semibold text-gray-900">
+                  {new Date(selectedSlot).toLocaleString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm text-gray-500">Order total</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">
+                  ₦{cartTotal.toFixed(2)}
+                </p>
+                <ul className="mt-2 space-y-1 border-t border-gray-200 pt-2 text-xs text-gray-600">
+                  {Object.entries(cart).map(([id, qty]) => {
+                    const item = menuItems.find((m) => String(m.id) === id);
+                    return (
+                      <li key={id} className="flex justify-between">
+                        <span>
+                          {item?.name || "Item"} x{qty}
+                        </span>
+                        <span>
+                          ₦{((item?.price || 0) * qty || 0).toFixed(2)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Confirm Account Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Enter password to authorize"
+                  className="w-full p-3 border border-gray-200 focus:outline-none focus:border-orange-500 text-sm"
+                />
+              </div>
+              {paymentError && (
+                <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                  {paymentError}
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setShowPaymentDialog(false)}
+                  className="rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">
+                  Cancel
+                </button>
+                <button
+                  onClick={processPayment}
+                  disabled={paymentLoading}
+                  className="rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:bg-orange-300">
+                  {paymentLoading ? "Processing..." : "Pay Now"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

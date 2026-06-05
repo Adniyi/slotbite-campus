@@ -31,6 +31,13 @@ export default function BottomNav() {
             <LayoutDashboard size={20} className="mb-0.5" /> Dashboard
           </NavLink>
           <NavLink
+            to="/student/timetable"
+            className={({ isActive }) =>
+              `${baseStyles} ${isActive ? activeStyles : unactiveStyles}`
+            }>
+            <ClipboardList size={20} className="mb-0.5" /> Timetable
+          </NavLink>
+          <NavLink
             to="/student/orders"
             className={({ isActive }) =>
               `${baseStyles} ${isActive ? activeStyles : unactiveStyles}`

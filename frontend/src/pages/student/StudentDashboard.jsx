@@ -64,12 +64,21 @@ export default function StudentDashboard() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Welcome to SlotBite
-        </h1>
-        <p className="text-gray-500 text-sm">
-          Select an active campus kitchen to view open booking slots.
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Welcome to SlotBite
+            </h1>
+            <p className="text-gray-500 text-sm">
+              Select an active campus kitchen to view open booking slots.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/student/timetable")}
+            className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+            View Your Timetable
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4">

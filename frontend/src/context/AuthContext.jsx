@@ -22,6 +22,7 @@ export function AuthProvider({ children }) {
     role,
     matricNumber,
     phone,
+    cafeteriaId,
   }) => {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
@@ -32,6 +33,7 @@ export function AuthProvider({ children }) {
         password,
         role,
         matrix_number: matricNumber || undefined,
+        cafeteria_id: cafeteriaId || undefined,
         phone: phone || undefined,
       }),
     });
@@ -51,11 +53,18 @@ export function AuthProvider({ children }) {
     navigate(role === "vendor" ? "/vendor" : "/student");
   };
 
-  const login = async (email, role, password) => {
+  const login = async (email, _roleOrPassword, maybePassword) => {
+    // Support two call signatures for backward-compatibility:
+    // login(email, role, password) or login(email, password)
+    const password = maybePassword || _roleOrPassword;
+
+    // Determine role argument when called as login(email, role, password)
+    const roleArg = maybePassword ? _roleOrPassword : "student";
+
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, role: roleArg }),
     });
 
     const data = await response.json();
@@ -65,12 +74,31 @@ export function AuthProvider({ children }) {
       throw new Error(errorDetail);
     }
 
+    // persist token
     localStorage.setItem("slotbite_token", data.access_token);
-    const authUser = { email, role, token: data.access_token };
+    setToken(data.access_token);
+
+    // Fetch current user info to get authoritative role
+    const meRes = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${data.access_token}` },
+    });
+    let me = null;
+    try {
+      me = await meRes.json();
+    } catch (e) {
+      // ignore
+    }
+
+    const roleFromServer = me && me.role ? me.role : undefined;
+    const authUser = {
+      email,
+      role: roleFromServer || "student",
+      token: data.access_token,
+    };
     localStorage.setItem("slotbite_user", JSON.stringify(authUser));
     setUser(authUser);
-    setToken(data.access_token);
-    navigate(role === "vendor" ? "/vendor" : "/student");
+
+    navigate(roleFromServer === "vendor" ? "/vendor" : "/student");
   };
 
   const fetchOrders = async () => {
