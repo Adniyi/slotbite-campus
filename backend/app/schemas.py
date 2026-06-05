@@ -60,6 +60,7 @@ class OrderItemCreate(BaseModel):
 class OrderCreate(BaseModel):
     cafeteria_id: int
     slot_time: datetime
+    password: str
     items: List[OrderItemCreate]
 
 class OrderItemResponse(BaseModel):

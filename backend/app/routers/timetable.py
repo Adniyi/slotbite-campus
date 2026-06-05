@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, date as date_obj
 from typing import List
 
 from ..database import get_db
@@ -93,15 +94,22 @@ def recommend_slots(
         max_capacity = caf.max_orders_per_slot if caf else 25
         is_paused = bool(caf.is_paused) if caf else False
         start_time = datetime.combine(target_date, time(hour=10, minute=0))
+        
+        # Optimization: Fetch all counts for this cafeteria and date in one query
+        order_counts = db.query(models.Order.slot_time, models.func.count(models.Order.id))\
+            .filter(
+                models.Order.cafeteria_id == caf.id,
+                models.func.date(models.Order.slot_time) == target_date,
+                models.Order.status != models.OrderStatus.CANCELLED
+            )\
+            .group_by(models.Order.slot_time)\
+            .all()
+        counts_map = {slot: count for slot, count in order_counts}
+
         slots_list = []
         for i in range(25):
             slot_time = start_time + timedelta(minutes=15 * i)
-            count = db.query(models.Order).filter(
-                models.Order.cafeteria_id == caf.id,
-                models.Order.slot_time == slot_time,
-                models.Order.status != models.OrderStatus.CANCELLED
-            ).count()
-            available = max(0, max_capacity - count)
+            available = max(0, max_capacity - counts_map.get(slot_time, 0))
             available = 0 if is_paused else available
             slots_list.append({
                 "slot_time": slot_time,
@@ -172,3 +180,20 @@ def recommend_slots(
         r["slot_time"] = r["slot_time"].isoformat()
 
     return recommendations
+
+@router.delete("/{class_id}")
+def delete_class_schedule(
+    class_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    db_class = db.query(models.ClassSchedule).filter(
+        models.ClassSchedule.id == class_id,
+        models.ClassSchedule.user_id == current_user.id
+    ).first()
+    if not db_class:
+        raise HTTPException(status_code=404, detail="Class not found")
+    
+    db.delete(db_class)
+    db.commit()
+    return {"message": "Class deleted successfully"}

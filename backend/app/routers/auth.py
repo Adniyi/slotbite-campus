@@ -23,6 +23,9 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
             status_code=400,
             detail="Invalid matric number"
         )
+
+    elif not crud.verify_student_email(user.matrix_number, user.email):
+        raise HTTPException(status_code=400, detail = "Invalid matric number or email")
     
     # Check if user already exists
     db_user = crud.get_user_by_email(db, email=user.email)

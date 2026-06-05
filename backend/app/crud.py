@@ -1,10 +1,13 @@
 # crud.py
+from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, time
 from typing import List, Optional
 from sqlalchemy import cast, Date
 from . import models, schemas
 from .utils.security import get_password_hash, verify_password
+import json
+
 
 
 # ===================== AUTH =====================
@@ -43,6 +46,12 @@ def authenticate_user(db: Session, email: str, password: str):
 
 # ===================== ORDERS =====================
 def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
+    # Verify user password before processing order
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    # Note: 'order.password' assumes your OrderCreate schema includes the password field
+    if not user or not verify_password(order.password, user.hashed_password): # type: ignore
+        raise HTTPException(status_code=400 ,detail="Incorrect account password")
+
     # Calculate total and create order
     total = 0.0
     db_order = models.Order(
@@ -105,24 +114,6 @@ def get_user_orders(db: Session, user_id: int) -> List[models.Order]:
 def get_order(db: Session, order_id: int) -> Optional[models.Order]:
     return db.query(models.Order).filter(models.Order.id == order_id).first()
 
-
-# def get_vendor_orders(db: Session, vendor_id: int, slot_time: Optional[datetime] = None):
-#     """Get orders only for the vendor's cafeteria"""
-#     vendor = db.query(models.User).filter(models.User.id == vendor_id).first()
-#     if not vendor:
-#         return []
-
-#     if vendor.cafeteria_id:
-#         query = db.query(models.Order).filter(models.Order.cafeteria_id == vendor.cafeteria_id)
-    
-#     if slot_time:
-#         query = query.filter(models.Order.slot_time == slot_time)
-#     else:
-#         today = datetime.now().date()
-#         query = query.filter(cast(models.Order.slot_time, Date) == today)
-    
-#     # return query.order_by(models.Order.slot_time.asc()).all()
-#     return db.query(models.Order).order_by(models.Order.created_at.desc()).all()
 
 
 def update_order_status(db: Session, order_id: int, status: models.OrderStatus):
@@ -232,49 +223,6 @@ def get_user_matric_number(db: Session, user_matric_number: str):
     return db.query(models.User).filter(models.User.matrix_number == user_matric_number).first()
 
 
-# def get_vendor_dashboard(db: Session, vendor_id: int | None = None):
-#     today = datetime.now().date()
-#     orders = db.query(models.Order).filter(
-#         cast(models.Order.created_at, Date) == today  # type: ignore
-#     ).all()
-
-#     total = len(orders)
-#     pending = sum(
-#         1
-#         for o in orders
-#         if (o.status.value if isinstance(o.status, models.OrderStatus) else str(o.status))
-#         == models.OrderStatus.PENDING.value
-#     )
-#     ready = sum(
-#         1
-#         for o in orders
-#         if (o.status.value if isinstance(o.status, models.OrderStatus) else str(o.status))
-#         == models.OrderStatus.READY.value
-#     )
-#     revenue = sum(o.total_amount for o in orders)
-
-#     slot_counts = {}
-#     for o in orders:
-#         slot_key = o.slot_time.replace(second=0, microsecond=0)
-#         slot_counts[slot_key] = slot_counts.get(slot_key, 0) + 1
-
-#     slot_availability = [
-#         {
-#             "slot_time": slot,
-#             "available_slots": max(0, 25 - count),
-#             "total_capacity": 25,
-#         }
-#         for slot, count in sorted(slot_counts.items())
-#     ]
-
-#     return {
-#         "total_orders_today": total,
-#         "pending_orders": pending,
-#         "ready_orders": ready,
-#         "revenue_today": revenue,
-#         "slot_availability": slot_availability,
-#     }
-
 def get_vendor_dashboard(db: Session, vendor_id: int | None = None):
     # 1. Fetch vendor to filter by their cafeteria
     cafeteria_id = None
@@ -294,8 +242,8 @@ def get_vendor_dashboard(db: Session, vendor_id: int | None = None):
 
     # Start building the query
     query = db.query(models.Order).filter(
-        models.Order.created_at >= today_start,
-        models.Order.created_at <= today_end
+        models.Order.slot_time >= today_start,
+        models.Order.slot_time <= today_end
     )
 
     # Filter by the vendor's cafeteria if available
@@ -348,3 +296,18 @@ def get_vendor_dashboard(db: Session, vendor_id: int | None = None):
         "slot_availability": slot_availability,
         "is_paused": is_paused,
     }
+
+
+def verify_student_email(matric_number: str, email: str) -> bool:
+    with open("output.json", "r") as f:
+        data = json.load(f)
+
+    # Assuming the JSON contains a list with a single object
+    students = data[0]
+
+    stored_email = students.get(matric_number)
+
+    if stored_email is None:
+        return False  # Matric number not found
+
+    return stored_email.strip().lower() == email.strip().lower()
